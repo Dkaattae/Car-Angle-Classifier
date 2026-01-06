@@ -1,0 +1,6 @@
+pillow
+requests
+ddgs
+pandas
+jupyter
+scikit-learn
