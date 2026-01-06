@@ -11,8 +11,12 @@ all files are loaded into google drive, so it is easier to load into google cola
 
 # data split
 using sklearn train test split to split data from the metadata csv file.  
+after getting rid of bad images, and randomly split all images.   
+count in training set.    
+front: 272, rear: 203, side: 238.  
 
 # training
+
 
 # validation
 

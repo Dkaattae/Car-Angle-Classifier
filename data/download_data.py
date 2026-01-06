@@ -89,7 +89,7 @@ if __name__ == "__main__":
     query_list = [
         # 'car "front view" -people -interior', 
         # 'car "side profile" white background', 
-        'car "rear view" -mirror -interior -inside -glass'
+        'Full car rear profile'
     ]
     query_map = dict(zip(angle_list, query_list))
     for angle in angle_list:
