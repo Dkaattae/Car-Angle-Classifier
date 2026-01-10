@@ -40,16 +40,9 @@ def preprocess_pytorch_style(X):
     return X.astype(np.float32)
 
 
-def predict(event, onnx_model_path):
+def predict(body, onnx_model_path):
     input_size = 224
-    if "body" in event and event["body"]:
-        if event.get('isBase64Encoded'):
-            body_str = event.get('body', '{}')
-            body = base64.b64decode(body_str).decode('utf-8')
-        else:
-            body = json.loads(event["body"])
-    else:
-        body = event
+    
     if "image_data" in body:
         image_bytes = base64.b64decode(body["image_data"])
         img = Image.open(BytesIO(image_bytes))
@@ -91,7 +84,16 @@ def predict(event, onnx_model_path):
 
 
 def lambda_handler(event, context):
-    predictions = predict(event, onnx_model_path)
+    if "body" in event and event["body"]:
+        if event.get('isBase64Encoded'):
+            body_str = event.get('body', '{}')
+            body = base64.b64decode(body_str).decode('utf-8')
+        else:
+            body = json.loads(event["body"])
+    else:
+        body = event
+    print(body)
+    predictions = predict(body, onnx_model_path)
     return {
         "statusCode": 200,
         "headers": {
