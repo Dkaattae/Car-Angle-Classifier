@@ -4,7 +4,9 @@ import onnxruntime as ort
 from io import BytesIO
 from urllib import request
 import base64
+import json
 from PIL import Image
+from dotenv import load_dotenv
 
 onnx_model_path = os.getenv("MODEL_PATH", "car_angle_classifier.onnx")
 
@@ -40,19 +42,30 @@ def preprocess_pytorch_style(X):
 
 def predict(event, onnx_model_path):
     input_size = 224
-    if "image_data" in event:
-        image_bytes = base64.b64decode(event["image_data"])
-        img = Image.open(BytesIO(image_bytes))
-    elif "url" in event:
-        img = download_image(event["url"])
+    if "body" in event and event["body"]:
+        if event.get('isBase64Encoded'):
+            body_str = event.get('body', '{}')
+            body = base64.b64decode(body_str).decode('utf-8')
+        else:
+            body = json.loads(event["body"])
     else:
+        body = event
+    if "image_data" in body:
+        image_bytes = base64.b64decode(body["image_data"])
+        img = Image.open(BytesIO(image_bytes))
+    elif "url" in body:
+        img = download_image(body["url"])
+    elif body.get("source") == "s3":
         import boto3
+        load_dotenv()
         s3 = boto3.client('s3')
-        bucket = event['Records'][0]['s3']['bucket']['name']
-        key = event['Records'][0]['s3']['object']['key']
+        bucket = body["bucket"]
+        key = body["key"]
         response = s3.get_object(Bucket=bucket, Key=key)
         image_bytes = response['Body'].read()
         img = Image.open(BytesIO(image_bytes))
+    else:
+        raise ValueError("unsupported image source")
 
     img = prepare_image(img, (input_size,input_size))
 
@@ -79,4 +92,10 @@ def predict(event, onnx_model_path):
 
 def lambda_handler(event, context):
     predictions = predict(event, onnx_model_path)
-    return predictions
+    return {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps(predictions)
+    }
