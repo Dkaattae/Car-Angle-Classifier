@@ -99,6 +99,9 @@ run with test images from my s3 bucket.
 note: test id is in file data/labels_fixed.csv.  
 if the id is not found in my s3 bucket, you will get a 'NoSuchKey' error.   
 
+![lambda test screenshot](images/test_in_lambda.png)
+![test sample](images/test_sample.png)
+
 ```
 curl -X POST \
   https://w5za34is7b.execute-api.us-east-2.amazonaws.com/predict \
