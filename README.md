@@ -1,69 +1,103 @@
 # Car-Angle-Classifier
-This project builds an image classification system that determines the viewing angle of a vehicle from a single image. Given an input image, the model classifies it into one of four categories: front view, rear view, side view.   
+## Project Description
+This project builds an image classification system to determine the viewing angle of a vehicle from a single image.
+Given an input image, the model classifies it into one of three categories:
+- Front view
+- Rear view
+- Side view
+### Motivation
+Identifying car models from images is challenging due to:
+A large number of car models
+High visual similarity between different models
+Sensitivity to viewing angle
+To simplify the problem, the pipeline is split into three steps:
+- Car logo detection (YOLO)
+- Car angle classification (**this project**)
+- Car model classification
+Knowing the car make and viewing angle reduces the complexity of model classification.
 
-## data downloading
-using duckduckgo search engine to download images with the search query as tag.   
-then go through each image to check correctness.    
-note: there are room for improvement for search queries. e.g. my car {angle} view parking lot shows parking lot instead of a car.   
-all files are loaded into google drive, so it is easier to load into google colab for training.   
+## Data Collection & EDA
+### Data Collection
 
-## data split
-using sklearn train test split to split data from the metadata csv file.  
-after getting rid of bad images, and randomly split all images.   
-count in training set.    
-front: 272, rear: 203, side: 238.  
+Images were downloaded using **DuckDuckGo** search queries corresponding to class labels (front/rear/side).  
+
+Process:
+
+- Manual review to remove incorrect images  
+- Images and metadata stored in **Google Drive** for easy Colab access  
+
+📂 **Dataset**:  
+[Google Drive Link](https://drive.google.com/drive/folders/12QVVb5izerFxFGUyt6o_4DDtoyvDIPMo?usp=sharing)
+
+### Exploratory Data Analysis (EDA)
+
+EDA focused on:
+
+- Label correctness  
+- Removing corrupted or invalid images  
+- Class balance  
+
+After cleaning, data was split using `sklearn.train_test_split`:
+
+| Class | Training Count |
+|-------|----------------|
+| Front | 272 |
+| Rear  | 203 |
+| Side  | 238 |
+
+📓 **EDA & Data Split Notebook**:  
+`data/split_data.ipynb`
 
 ## training
-first attempt: original
-first best val acc: 
-second attempt: more augmentation, 10 epochs
-second best val acc: 0.8239
-third attempt: less augmentation (continue training), 10 epochs
-third best val acc: 0.8380
-fourth attempt: dropout and inner layer, 50 epochs
-fourth best val acc: 0.8590
+### Architecture
 
-best model is saved and exported to onnx
+- Base: **MobileNetV2** (pretrained)  
+- Transfer learning with frozen base layers  
+- Custom classification head  
+- Experiments included: data augmentation, dropout, and inner layer modifications
 
-## deploy
-run locally
+### Training Experiments
+
+| Attempt | Description | Epochs | Best Validation Accuracy |
+|---------|------------|--------|------------------------|
+| 1 | Baseline | 10 | 0.8521 |
+| 2 | More augmentation | 10 | 0.8239 |
+| 3 | Reduced augmentation (continued training) | 10 | 0.8380 |
+| 4 | Dropout + inner layer | 50 | 0.8590 |
+
+- Learning rate was kept constant  
+- Best model exported to **ONNX** for deployment
+
+### Training Steps:
+1, download images to google drive, mount google drive to google colab.   
+2, run training/car_angle_classifier_training.ipynb.  
+3, save the final model locally.   
+
+### Enviroment
+I trained model in google colab, which handles environments and dependencies. 
+i have a package list in training/requirements.txt.  
+
+## Deploy Locally
+onnx model is deployed with lambda function.     
+### Build and Run Docker Image
 ```
 docker build -t car-angle-classifier .
 docker run -it --rm \
     -p 8080:8080 \
     car-angle-classifier
 ```
+### test locally
 open another terminal, python test.py.  
 
-run in cloud.  
-test locally
-i have my aws credentials export to local environment. 
-```
-docker run -it --rm \
-    -p 8080:8080 \
-    -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
-    -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-    -e AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION \
-    car-angle-classifier
-```
 
-```
-aws ecr create-repository \
-    --repository-name car-angle-classifier-zoomcamp \
-    --image-scanning-configuration scanOnPush=true \
-    --region us-east-2
-```
-
-`aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 344988460968.dkr.ecr.us-east-2.amazonaws.com/car-angle-classifier-zoomcamp`
-
-```
-docker tag car-angle-classifier:latest 344988460968.dkr.ecr.us-east-2.amazonaws.com/car-angle-classifier-zoomcamp:latest
-docker push 344988460968.dkr.ecr.us-east-2.amazonaws.com/car-angle-classifier-zoomcamp:latest
-```
-
-### API Gateway
+## Cloud Deployment 
+### API Gateway Endpoint: 
 https://w5za34is7b.execute-api.us-east-2.amazonaws.com
 
+### Test with S3 Image
+run with test images from my s3 bucket.   
+note: test id is in file data/labels_fixed.csv.  
+if the id is not found in my s3 bucket, you will get a 'NoSuchKey' error.   
 
 ```
 curl -X POST \
@@ -72,10 +106,37 @@ curl -X POST \
   -d '{
     "source": "s3",
     "bucket": "car-angle-classifier-images",
-    "key": "000290.jpg"
+    "key": "000291.jpg"
   }'
   ```
+### Test with image URL
+try images in url, change the url with a image of a car.   
+note: the image should only contain full view of one car, in any angle.    
+
+```
+curl -X POST \
+  https://w5za34is7b.execute-api.us-east-2.amazonaws.com/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://media.wired.com/photos/5e7b7a0fadfa9d0008e095b2/master/w_2560%2Cc_limit/Transpo-selfdrivingcar-1158000221.jpg"
+  }'
+```
 
 ### bash command
 `chmod +x deploy.sh`
 `./deploy.sh`
+
+## Next Steps
+### Improve Dataset
+- Collect more images for better generalization
+- Reduce class imbalance
+- Add harder examples
+
+### Improve lambda function
+- prefer direct image urls over s3 logic
+- add input validation and error handling
+- gracefully handle malformed requests
+
+### integrate with car make classifier
+Logo detection -> angle classifier -> model classifier
+

@@ -1,8 +1,6 @@
 import requests
 import base64
-from dotenv import load_dotenv
 
-load_dotenv()
 
 url = 'http://localhost:8080/2015-03-31/functions/function/invocations'
 

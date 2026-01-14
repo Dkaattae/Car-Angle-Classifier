@@ -1,7 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.12
 WORKDIR /var/task
 
-RUN pip install onnxruntime pillow numpy boto3 python-dotenv
+RUN pip install onnxruntime pillow numpy boto3
 
 COPY car_angle_classifier.onnx car_angle_classifier.onnx.data ./
 

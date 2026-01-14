@@ -6,7 +6,6 @@ from urllib import request
 import base64
 import json
 from PIL import Image
-from dotenv import load_dotenv
 
 onnx_model_path = os.getenv("MODEL_PATH", "car_angle_classifier.onnx")
 
@@ -50,10 +49,10 @@ def predict(body, onnx_model_path):
         img = download_image(body["url"])
     elif body.get("source") == "s3":
         import boto3
-        load_dotenv()
+        # load_dotenv()
         s3 = boto3.client('s3')
-        bucket = body["bucket"]
-        key = body["key"]
+        bucket = body.get('bucket').strip()
+        key = body.get('key').strip()
         response = s3.get_object(Bucket=bucket, Key=key)
         image_bytes = response['Body'].read()
         img = Image.open(BytesIO(image_bytes))

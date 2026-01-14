@@ -1,0 +1,17 @@
+# Neural Network
+torch
+torchvision
+
+# images
+Pillow
+
+# data processing
+numpy
+pandas
+matplotlib
+
+# onnx
+onnxscript
+onnx
+onnxruntime
+
