@@ -1,4 +1,5 @@
 import os
+import csv
 import numpy as np
 import onnxruntime as ort
 from io import BytesIO
@@ -38,27 +39,49 @@ def preprocess_pytorch_style(X):
 
     return X.astype(np.float32)
 
+def get_s3_test_list():
+    csv_path = 'labels_fixed.csv'
+    valid_files = set()
+    try:
+        with open(csv_path, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                split = row['split']
+                angle = row['angle']
+                if split == 'test' and angle != 'not_car':
+                    image_id = row['image_id']
+                    filename = f"{int(image_id):06d}.jpg"
+                    valid_files.add(filename)
+    except Exception as e:
+        print(f"Error loading CSV: {e}")
+    return valid_files
 
-def predict(body, onnx_model_path):
-    input_size = 224
-    
+def get_image(body):
+
     if "image_data" in body:
         image_bytes = base64.b64decode(body["image_data"])
         img = Image.open(BytesIO(image_bytes))
     elif "url" in body:
         img = download_image(body["url"])
     elif body.get("source") == "s3":
-        import boto3
-        # load_dotenv()
-        s3 = boto3.client('s3')
         bucket = body.get('bucket').strip()
         key = body.get('key').strip()
+        test_list = get_s3_test_list()
+        if key not in test_list:
+            print(key, test_list[0])
+            raise ValueError("image not found in s3")
+        import boto3
+        s3 = boto3.client('s3')
         response = s3.get_object(Bucket=bucket, Key=key)
         image_bytes = response['Body'].read()
         img = Image.open(BytesIO(image_bytes))
     else:
         raise ValueError("unsupported image source")
+    return img
 
+def predict(img, onnx_model_path):
+    input_size = 224
+    
     img = prepare_image(img, (input_size,input_size))
 
     X = np.array(img)
@@ -92,7 +115,12 @@ def lambda_handler(event, context):
     else:
         body = event
     print(body)
-    predictions = predict(body, onnx_model_path)
+    try: 
+        img = get_image(body)
+    except ValueError as e:
+        print(f"unexpected Error: {e}")
+        return {"statusCode": 500, "body": "Internal Server Error"}
+    predictions = predict(img, onnx_model_path)
     return {
         "statusCode": 200,
         "headers": {

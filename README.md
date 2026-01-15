@@ -86,6 +86,14 @@ docker run -it --rm \
     -p 8080:8080 \
     car-angle-classifier
 ```
+note: have aws configure first.   
+if not configured, s3 source is not possible to reach.   
+```
+docker run -it --rm \
+    -p 8080:8080 \
+    -v ~/.aws:/root/.aws:ro
+    car-angle-classifier
+```
 ### test locally
 open another terminal, python test.py.  
 
